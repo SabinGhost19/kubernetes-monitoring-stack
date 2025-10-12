@@ -1,0 +1,287 @@
+# ============================================================================
+# FLUENT BIT - VALUES.YAML COMPLET ȘI DETALIAT
+# ============================================================================
+# Configurație pentru colectare logs Kubernetes → Fluentd
+# Documentație: https://docs.fluentbit.io/manual/
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# ----------------------------------------------------------------------------
+image:
+  repository: fluent/fluent-bit
+  pullPolicy: IfNotPresent # IfNotPresent = trage doar dacă nu există | Always = trage mereu
+  tag: # Verifică versiuni: https://github.com/fluent/fluent-bit/releases
+
+imagePullSecrets: [] # Folosește dacă ai registry privat: [{ name: my-registry-secret }]
+
+# ----------------------------------------------------------------------------
+# SERVICE ACCOUNT & RBAC
+# ----------------------------------------------------------------------------
+serviceAccount:
+  create: true # Creează ServiceAccount automat
+  annotations: {} # Exemplu AWS IRSA: eks.amazonaws.com/role-arn: arn:aws:iam::...
+  name: fluent-bit
+
+rbac:
+  create: true # NECESAR pentru Kubernetes metadata enrichment
+  nodeAccess: true # Permite citirea informațiilor despre noduri
+
+# ----------------------------------------------------------------------------
+# POD CONFIGURATION
+# ----------------------------------------------------------------------------
+podAnnotations:
+  # Prometheus scraping - permite colectarea de metrici
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "2020"
+  prometheus.io/path: "/api/v1/metrics/prometheus"
+
+podLabels:
+  app.kubernetes.io/name: fluent-bit
+  app.kubernetes.io/component: log-collector
+
+# Security Context - Fluent Bit TREBUIE să ruleze ca root pentru a citi /var/log
+podSecurityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  fsGroup: 0
+
+securityContext:
+  capabilities:
+    drop: [ALL]
+    add:
+      - DAC_READ_SEARCH # Citește fișiere fără verificare permisiuni
+      - SYS_ADMIN # Acces la hostPath volumes
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+
+# ----------------------------------------------------------------------------
+# DAEMONSET - Rulează pe TOATE nodurile
+# ----------------------------------------------------------------------------
+kind: DaemonSet
+
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1 # Update un nod odată (safe)
+
+priorityClassName: system-node-critical # Prioritate maximă, nu e evicted
+
+# ----------------------------------------------------------------------------
+# RESOURCES - Ajustează în funcție de volumul de logs
+# ----------------------------------------------------------------------------
+# Ghid:
+#   Cluster mic (<20 noduri): 100m CPU, 128Mi RAM
+#   Cluster mediu (20-100 noduri): 200m CPU, 256Mi RAM
+#   Cluster mare (>100 noduri): 500m CPU, 512Mi RAM
+resources:
+  limits:
+    cpu: 500m # Maxim CPU - crește dacă vezi throttling
+    memory: 512Mi # Maxim RAM - crește dacă vezi OOMKilled
+  requests:
+    cpu: 100m # CPU rezervat - 20-30% din limit
+    memory: 128Mi # RAM rezervat - 50% din limit
+
+# ----------------------------------------------------------------------------
+# NODE SELECTION & TOLERATIONS
+# ----------------------------------------------------------------------------
+nodeSelector: {} # Rulează pe toate nodurile - adaugă doar dacă vrei restricții specifice
+
+# Tolerations - permite rularea pe noduri cu taints (inclusiv master)
+tolerations:
+  - key: "node-role.kubernetes.io/master"
+    operator: "Exists"
+    effect: "NoSchedule"
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+  - operator: "Exists" # Tolerează orice taint
+    effect: "NoExecute"
+  - operator: "Exists"
+    effect: "NoSchedule"
+
+affinity: {}
+
+# ----------------------------------------------------------------------------
+# VOLUMES - Acces la logs și metadata Kubernetes
+# ----------------------------------------------------------------------------
+volumeMounts:
+  - name: varlog
+    mountPath: /var/log
+    readOnly: true
+  - name: varlibdockercontainers # ← ACEST NUME
+    mountPath: /var/lib/docker/containers
+    readOnly: true
+  - name: etcmachineid
+    mountPath: /etc/machine-id
+    readOnly: true
+  - name: systemd
+    mountPath: /run/systemd
+    readOnly: true
+  - name: fluent-bit-buffer
+    mountPath: /fluent-bit/buffer
+    readOnly: false
+
+daemonSetVolumes:
+  - name: varlog # ← TREBUIE să corespundă
+    hostPath:
+      path: /var/log
+  - name: varlibdockercontainers # ← TREBUIE să corespundă
+    hostPath:
+      path: /var/lib/docker/containers
+  - name: etcmachineid # ← TREBUIE să corespundă
+    hostPath:
+      path: /etc/machine-id
+      type: FileOrCreate
+  - name: systemd # ← TREBUIE să corespundă
+    hostPath:
+      path: /run/systemd
+  - name: fluent-bit-buffer # ← TREBUIE să corespundă
+    hostPath:
+      path: /var/lib/fluent-bit
+      type: DirectoryOrCreate
+
+extraVolumes: []
+extraVolumeMounts: []
+
+# ----------------------------------------------------------------------------
+# SERVICE - Expune HTTP server pentru metrics
+# ----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 2020
+  labels: {}
+  annotations: {}
+
+serviceMonitor:
+  enabled: false # Set true dacă folosești Prometheus Operator
+
+# ----------------------------------------------------------------------------
+# HEALTH CHECKS
+# ----------------------------------------------------------------------------
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# ----------------------------------------------------------------------------
+# ENVIRONMENT VARIABLES
+# ----------------------------------------------------------------------------
+env:
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: POD_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+  - name: POD_NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
+  - name: CLUSTER_NAME
+    value: "microk8s-cluster"
+# ============================================================================
+# FLUENT BIT CONFIGURATION
+# ============================================================================
+config:
+  service: |
+    [SERVICE]
+        Flush        5
+        Daemon       Off
+        Log_Level    info
+        Parsers_File parsers.conf
+
+        HTTP_Server               On
+        HTTP_Listen               0.0.0.0
+        HTTP_Port                 2020
+
+        storage.path              /fluent-bit/buffer
+        storage.sync              normal
+        storage.checksum          off
+        storage.max_chunks_up     128
+        storage.backlog.mem_limit 5M
+
+  inputs: |
+    [INPUT]
+        Name tail
+        Path /var/log/containers/*.log
+        Exclude_Path  /var/log/containers/*fluent*.log
+        Parser cri
+        Tag kube.*
+        Refresh_Interval    5
+        Mem_Buf_Limit       5MB
+
+        Skip_Long_Lines     On
+
+        Skip_Empty_Lines    On
+
+        DB                  /fluent-bit/buffer/tail-containers.db
+        DB.locking          true
+
+        storage.type        filesystem
+
+filters: |
+  [FILTER]
+      Name kubernetes
+      Match kube.*
+
+      # === CONEXIUNE API SERVER ===
+      Kube_URL            https://kubernetes.default.svc:443
+      Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+      
+      # === DEZACTIVEAZĂ KUBELET ===
+      Use_Kubelet         Off
+      # Kubelet_Port        10250  # ⬅️ COMENTEAZĂ sau ELIMINĂ această linie
+
+      # === OPTIMIZĂRI PERFORMANȚĂ ===
+      Kube_Tag_Prefix     kube.var.log.containers.
+      
+      Merge_Log           On
+      Keep_Log            Off    # ⬅️ Recomandat "Off" pentru performanță
+      
+      K8S-Logging.Parser  On
+      K8S-Logging.Exclude On
+      
+      Labels              On
+      Annotations         On
+      
+      # === TUNING PENTRU API SERVER ===
+      Buffer_Size         64k    # ⬅️ Mărește pentru mai multe metadata
+      
+      # Retry settings îmbunătățite
+      DNS_Retries         10
+      DNS_Wait_Time       60
+      
+      # Reduce load-ul pe API Server
+      tls.verify          On
+
+  outputs: |
+    [OUTPUT]
+        Name forward
+        Match *
+        Host fluentd.logging.svc.cluster.local
+        Port 24224
+
+        Retry_Limit         5
+        net.keepalive       on
+        net.keepalive_idle_timeout 30
+
+        Compress            gzip
+
+        storage.total_limit_size 10M

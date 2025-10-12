@@ -1,0 +1,52 @@
+# apps/elasticsearch/values.yaml
+
+# NOTE: On a 2-node k8s cluster: recommended to run single-node ES for dev/testing.
+# Production: you should have >= 3 master-eligible nodes.
+
+replicas: 1 # set to 1 for a 2-node cluster; set to 3 for production (3 master-eligible)
+minimumMasterNodes: 1 # for single-node / small setup; for production set to 2 (or (n/2)+1)
+
+volumeClaimTemplate:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 100Gi
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "2Gi"
+  limits:
+    cpu: "1"
+    memory: "4Gi"
+
+esConfig:
+  elasticsearch.yml: |
+    xpack.security.enabled: false
+    cluster.name: "logging"
+    # For single node you can enable discovery.type: single-node
+    # discovery.type: single-node
+
+# Security & credentials:
+# Do NOT place passwords here. Create a k8s secret and reference it below (existingSecret).
+auth:
+  enabled: false
+  # If enabled: use existingSecret with keys: elastic-username, elastic-password
+  # existingSecret: "es-credentials-secret"
+
+# Node scheduling:
+nodeSelector:
+  kubernetes.io/role: worker
+
+tolerations:
+  - key: "node-role.kubernetes.io/master"
+    operator: "Exists"
+    effect: "NoSchedule"
+
+# Pod anti-affinity (if you have >= 3 nodes recommended)
+affinity: {}
+# Additional recommended settings for production:
+# - Configure JVM heap explicitly via env or set in values to: Xmx/Xms ~ half of container memory (but <= 31GB)
+# - Enable nodeRoles (master/data/ingest) properly on multi-node clusters
+# - Enable snapshot repository for backups
+# - Enable TLS & authentication (xpack) for production
