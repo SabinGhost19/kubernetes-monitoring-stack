@@ -1,0 +1,168 @@
+# opensearch-values.yaml
+clusterName: "opensearch-cluster"
+nodeGroup: "master"
+
+# Configurație de bază
+config:
+  opensearch.yml: |
+    cluster.name: opensearch-cluster
+    node.name: ${HOSTNAME}
+    discovery.type: single-node
+
+    # Security - ACTIVAT cu SSL (OBLIGATORIU!)
+    plugins.security.disabled: false
+
+    # SSL pentru Transport Layer (OBLIGATORIU când security e activat)
+    plugins.security.ssl.transport.enabled: true
+    plugins.security.ssl.transport.pemcert_filepath: esnode.pem
+    plugins.security.ssl.transport.pemkey_filepath: esnode-key.pem
+    plugins.security.ssl.transport.pemtrustedcas_filepath: root-ca.pem
+    plugins.security.ssl.transport.enforce_hostname_verification: false
+
+    # SSL pentru HTTP (opțional, dar recomandat)
+    plugins.security.ssl.http.enabled: true
+    plugins.security.ssl.http.pemcert_filepath: esnode.pem
+    plugins.security.ssl.http.pemkey_filepath: esnode-key.pem
+    plugins.security.ssl.http.pemtrustedcas_filepath: root-ca.pem
+
+    # Configurații Security
+    plugins.security.allow_unsafe_democertificates: true
+    plugins.security.allow_default_init_securityindex: true
+    plugins.security.authcz.admin_dn:
+      - CN=kirk,OU=client,O=client,L=test,C=de
+
+    # Configurații pentru Fluentd - actualizate pentru HTTPS
+    http.cors.enabled: true
+    http.cors.allow-origin: "*"
+    http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
+    http.cors.allow-headers: X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization
+
+  # Configurare Performance Analyzer
+  performance-analyzer.properties: |
+    # Enable Performance Analyzer
+    webservice-listener = org.opensearch.performanceanalyzer.net.NetServer
+    rpc-port = 9650
+    webservice-port = 9600
+
+    # Metrics collection
+    metrics-location = /dev/shm/performanceanalyzer/
+    metrics-deletion-interval = 1
+    https-enabled = false
+
+    # Cleanup settings
+    cleanup-metrics-db-files = true
+    batch-metrics-retention-period-minutes = 7
+
+    # Performance settings
+    writer-queue-size = 10000
+
+# Variabile de mediu necesare
+extraEnvs:
+  - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+    value: "Admin123!@#" # Schimbă cu o parolă puternică!
+  - name: DISABLE_INSTALL_DEMO_CONFIG
+    value: "false"
+  # ACTIVEAZĂ Performance Analyzer
+  - name: DISABLE_PERFORMANCE_ANALYZER_AGENT_CLI
+    value: "false"
+
+# Correct plugins configuration
+plugins:
+  enabled: true
+  install: ["analysis-icu"]
+
+# Resurse - mărite pentru Performance Analyzer
+resources:
+  requests:
+    memory: "1.5Gi"
+    cpu: "750m"
+  limits:
+    memory: "2.5Gi"
+    cpu: "1500m"
+
+# Java Heap Size - ajustat pentru memory limit
+opensearchJavaOpts: "-Xms512m -Xmx512m"
+
+# Persistență
+persistence:
+  enabled: true
+  size: "20Gi"
+  storageClass: ""
+
+# Volume suplimentar pentru Performance Analyzer (shared memory)
+extraVolumes:
+  - name: shm
+    emptyDir:
+      medium: Memory
+      sizeLimit: 512Mi
+
+extraVolumeMounts:
+  - name: shm
+    mountPath: /dev/shm
+
+# Service - adaugă port pentru Performance Analyzer
+service:
+  type: ClusterIP
+  ports:
+    - port: 9200
+      name: http
+    - port: 9300
+      name: transport
+    - port: 9600
+      name: performance-analyzer
+      protocol: TCP
+
+# Headless service pentru Performance Analyzer
+headlessService:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+
+# Pentru acces extern (dacă e necesar)
+ingress:
+  enabled: false
+
+# Single-node pentru development
+replicas: 1
+
+# Roluri node - folosește cluster_manager în loc de master
+roles:
+  - cluster_manager
+  - ingest
+  - data
+  - remote_cluster_client
+
+# Security config
+securityConfig:
+  enabled: true
+  path: "/usr/share/opensearch/config/opensearch-security"
+
+# Sysctls pentru OpenSearch
+sysctlInit:
+  enabled: true
+
+# Init containers pentru a crea directoarele necesare
+extraInitContainers:
+  - name: setup-performance-analyzer
+    image: busybox:1.36
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /dev/shm/performanceanalyzer
+        chmod 777 /dev/shm/performanceanalyzer
+        echo "Performance Analyzer directory created"
+    volumeMounts:
+      - name: shm
+        mountPath: /dev/shm
+
+# Security context pentru a permite accesul la /dev/shm
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+  runAsUser: 1000
