@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: git@github.com:SabinGhost19/kubernetes-logging-stack.git
-    path: apps/prometheus-stack/kube-prometheus-stack
+    path: apps/charts/prometheus-stack/kube-prometheus-stack
     targetRevision: main
     helm:
       valueFiles:
