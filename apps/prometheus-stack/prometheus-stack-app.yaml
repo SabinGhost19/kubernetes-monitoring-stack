@@ -9,12 +9,12 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    repoURL: "https://github.com/prometheus-community/helm-charts.git"
-    chart: kube-prometheus-stack
-    targetRevision: 40.1.2
+    repoURL: git@github.com:SabinGhost19/kubernetes-logging-stack.git
+    path: apps/prometheus-stack/kube-prometheus-stack
+    targetRevision: main
     helm:
       valueFiles:
-        - values.yaml
+        - ../values.yaml
   syncPolicy:
     automated:
       prune: true
