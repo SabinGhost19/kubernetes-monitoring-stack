@@ -3,9 +3,22 @@ global:
   imagePullPolicy: IfNotPresent
 
 prometheusOperator:
-  # Disable admission webhooks to avoid image pull issues
   admissionWebhooks:
     enabled: false
+    patch:
+      enabled: false
+    createSecretJob:
+      enabled: false
+
+  tlsProxy:
+    enabled: false
+
+  tls:
+    enabled: false
+
+  serviceMonitor:
+    selfMonitor: false
+
   resources:
     limits:
       cpu: 200m
@@ -13,8 +26,9 @@ prometheusOperator:
     requests:
       cpu: 100m
       memory: 256Mi
+
   image:
-    pullPolicy: IfNotPresent # Important pentru net lent!
+    pullPolicy: IfNotPresent
 
 # Prometheus Configuration
 prometheus:
