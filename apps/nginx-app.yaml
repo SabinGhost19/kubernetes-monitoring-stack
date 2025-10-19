@@ -1,16 +1,16 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: monitoring-stack
+  name: nginx-test
   namespace: argocd
 spec:
   destination:
-    namespace: monitoring
+    namespace: default
     server: https://kubernetes.default.svc
   project: default
   source:
     repoURL: git@github.com:SabinGhost19/kubernetes-logging-stack.git
-    path: apps/charts/prometheus-stack/kube-prometheus-stack
+    path: apps/charts/nginx-test-chart/nginx-test
     targetRevision: main
     helm:
       valueFiles:
@@ -20,5 +20,4 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - ServerSideApply=true
       - CreateNamespace=true
