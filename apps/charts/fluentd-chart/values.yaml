@@ -392,7 +392,7 @@ fileConfigs:
         scheme https
         ssl_verify false
         user admin
-        password "admin"
+        password "Admin123!@#"  
         logstash_format true
         include_tag_key true
         tag_key "@log_name"
@@ -403,6 +403,11 @@ fileConfigs:
         template_name "fluentd"
         template_file "/etc/fluent/templates/opensearch_template.json"
         template_overwrite true
+        
+        ca_file /usr/share/opensearch/config/root-ca.pem
+        client_cert /usr/share/opensearch/config/esnode.pem
+        client_key /usr/share/opensearch/config/esnode-key.pem
+        
         <buffer>
           @type file
           path "/fluentd/buffer"
@@ -411,12 +416,9 @@ fileConfigs:
           chunk_limit_size 1M
           queue_limit_length 32
           retry_forever true
+          retry_wait 10s
+          retry_max_interval 30s
         </buffer>
-      </match>
-
-      <match **>
-        @type stdout
-        @id out_stdout
       </match>
     </label>
 
