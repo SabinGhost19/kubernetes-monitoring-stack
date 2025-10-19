@@ -86,7 +86,7 @@ These principles are applied across this repo: declarative values, Argo CD for r
 
 ---
 
-## Read more (local README files)
+## Read more 
 
 Follow these README files for chart- and component-specific configuration:
 
