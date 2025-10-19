@@ -1,0 +1,164 @@
+# Deployment configuration
+deployment:
+  enabled: true
+  kind: Deployment
+  replicas: 1
+
+# Pod disruption budget for high availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Resource limits and requests
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+# Port configuration
+ports:
+  web:
+    port: 8000
+    expose: true
+    exposedPort: 80
+    protocol: TCP
+  websecure:
+    port: 8443
+    expose: true
+    exposedPort: 443
+    protocol: TCP
+    tls:
+      enabled: true
+  metrics:
+    port: 9100
+    expose: false
+    protocol: TCP
+
+# Service configuration
+service:
+  enabled: true
+  type: LoadBalancer
+  annotations: {}
+  # For cloud providers (example AWS):
+  # annotations:
+  #   service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+# Logging
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
+    format: json
+
+# Metrics for monitoring
+metrics:
+  prometheus:
+    enabled: true
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true
+
+# Global redirect HTTP -> HTTPS
+# Enable after certificate configuration
+# globalArguments:
+#   - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+#   - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+# Security headers
+# additionalArguments:
+#   - "--entrypoints.websecure.http.middlewares=security-headers@file"
+
+# Persistence for certificates (optional for Let's Encrypt)
+persistence:
+  enabled: false
+  # Enable for Let's Encrypt ACME storage
+  # enabled: true
+  # name: traefik-acme
+  # accessMode: ReadWriteOnce
+  # size: 128Mi
+  # storageClass: ""
+  # path: /data
+
+# Health checks
+readinessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 2
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 2
+
+livenessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 2
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 2
+
+# Security context
+securityContext:
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: true
+  runAsGroup: 65532
+  runAsNonRoot: true
+  runAsUser: 65532
+
+podSecurityContext:
+  fsGroup: 65532
+
+# Providers
+providers:
+  kubernetesCRD:
+    enabled: true
+    allowCrossNamespace: false
+    allowExternalNameServices: false
+  kubernetesIngress:
+    enabled: true
+    publishedService:
+      enabled: true
+
+# IngressRoute for Traefik dashboard (optional)
+ingressRoute:
+  dashboard:
+    enabled: false
+    # Enable only in dev/staging with authentication
+    # enabled: true
+    # matchRule: Host(`traefik.example.com`)
+    # entryPoints: ["websecure"]
+
+# RBAC
+rbac:
+  enabled: true
+
+# Service Account
+serviceAccount:
+  create: true
+  name: ""
+
+# Affinity for distribution across different nodes
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - traefik
+          topologyKey: kubernetes.io/hostname
+
+# Update strategy
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+# ArgoCD specific annotations (optional)
+# annotations:
+#   argocd.argoproj.io/sync-wave: "1"
