@@ -1,11 +1,11 @@
-# Kube Prometheus Stack - Production-Ready Minimal Configuration
+# Global settings pentru timeout-uri
+global:
+  imagePullPolicy: IfNotPresent
 
-# Prometheus Operator Configuration
 prometheusOperator:
   # Disable admission webhooks to avoid image pull issues
   admissionWebhooks:
     enabled: false
-
   resources:
     limits:
       cpu: 200m
@@ -13,15 +13,15 @@ prometheusOperator:
     requests:
       cpu: 100m
       memory: 256Mi
+  image:
+    pullPolicy: IfNotPresent # Important pentru net lent!
 
 # Prometheus Configuration
 prometheus:
   prometheusSpec:
-    # Retention period for metrics
     retention: 15d
     retentionSize: "9GB"
 
-    # Storage configuration
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -30,7 +30,6 @@ prometheus:
             requests:
               storage: 10Gi
 
-    # Resource limits
     resources:
       requests:
         cpu: 500m
@@ -39,17 +38,16 @@ prometheus:
         cpu: 1000m
         memory: 4Gi
 
-    # Service monitors - what to scrape
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
-
-    # Enable persistent storage
     enableAdminAPI: true
+
+  image:
+    pullPolicy: IfNotPresent
 
 # Alertmanager Configuration
 alertmanager:
   enabled: true
-
   alertmanagerSpec:
     storage:
       volumeClaimTemplate:
@@ -58,7 +56,6 @@ alertmanager:
           resources:
             requests:
               storage: 5Gi
-
     resources:
       requests:
         cpu: 100m
@@ -66,20 +63,18 @@ alertmanager:
       limits:
         cpu: 200m
         memory: 256Mi
+  image:
+    pullPolicy: IfNotPresent
 
 # Grafana Configuration
 grafana:
   enabled: true
-
-  # Admin credentials (CHANGE IN PRODUCTION!)
   adminPassword: "admin123"
 
-  # Persistence
   persistence:
     enabled: true
     size: 5Gi
 
-  # Resources
   resources:
     requests:
       cpu: 100m
@@ -88,7 +83,13 @@ grafana:
       cpu: 500m
       memory: 512Mi
 
-  # Grafana datasources
+  image:
+    pullPolicy: IfNotPresent
+
+  # Timeout-uri mai mari pentru download
+  downloadDashboardsImage:
+    pullPolicy: IfNotPresent
+
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -99,14 +100,12 @@ grafana:
           access: proxy
           isDefault: true
 
-  # Default dashboards
   defaultDashboardsEnabled: true
   defaultDashboardsTimezone: "Europe/Bucharest"
 
-# Node Exporter - collects node metrics
+# Node Exporter
 nodeExporter:
   enabled: true
-
   resources:
     requests:
       cpu: 50m
@@ -114,11 +113,12 @@ nodeExporter:
     limits:
       cpu: 200m
       memory: 128Mi
+  image:
+    pullPolicy: IfNotPresent
 
-# Kube State Metrics - Kubernetes cluster state
+# Kube State Metrics
 kubeStateMetrics:
   enabled: true
-
   resources:
     requests:
       cpu: 50m
@@ -126,25 +126,21 @@ kubeStateMetrics:
     limits:
       cpu: 200m
       memory: 256Mi
+  image:
+    pullPolicy: IfNotPresent
 
-# Service Monitors for Kubernetes components
+# Service Monitors
 kubeApiServer:
   enabled: true
-
 kubelet:
   enabled: true
-
 kubeControllerManager:
   enabled: true
-
 coreDns:
   enabled: true
-
 kubeEtcd:
-  enabled: false # Enable if you have access to etcd
-
+  enabled: false
 kubeScheduler:
   enabled: true
-
 kubeProxy:
   enabled: true
