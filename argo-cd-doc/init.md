@@ -1,12 +1,4 @@
-Sigur! Iată un README structurat în stil documentativ, tip articol, în engleză, bazat pe ultimele două conversații:
-
----
-
 # Adding a GitHub Repository to ArgoCD Using SSH
-
-This document provides a step-by-step guide for integrating a GitHub repository with ArgoCD using SSH authentication. It addresses common errors encountered during the process and demonstrates the correct commands to establish a working connection.
-
----
 
 ## Prerequisites
 
@@ -90,23 +82,5 @@ argocd account get-user
 Once authenticated, add the repository using the SSH key:
 
 ```bash
-argocd repo add git@github.com:SabinGhost19/kubernetes-logging-stack.git --ssh-private-key-path ~/.ssh/githubUbuntuKey
+argocd repo add git@github.com:SabinGhost19/kubernetes-logging-stack.git --ssh-private-key-path ~/.ssh/key
 ```
-
-After this step, ArgoCD will be able to synchronize applications from the GitHub repository using SSH authentication.
-
----
-
-## Summary
-
-The main points to consider when adding a GitHub repository to ArgoCD with SSH:
-
-1. Ensure the SSH key is correctly configured and working with GitHub.
-2. Authenticate the ArgoCD CLI with valid credentials to avoid session errors.
-3. Use the `--ssh-private-key-path` flag to provide the private key for repository access.
-
-Following these steps resolves common authentication issues and enables seamless integration between GitHub and ArgoCD.
-
----
-
-If you want, I can also create a **cleaner, ready-to-use markdown file** with proper headings and formatting that you could push directly to your repository. Do you want me to do that?
