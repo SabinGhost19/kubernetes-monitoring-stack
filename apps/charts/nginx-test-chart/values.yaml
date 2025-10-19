@@ -10,12 +10,4 @@ service:
   port: 80
 
 ingress:
-  enabled: true
-  className: "traefik"
-  annotations: {}
-  hosts:
-    - host: nginx-test.ggdevs.site
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+  enabled: false
