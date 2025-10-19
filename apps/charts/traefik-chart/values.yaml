@@ -46,7 +46,7 @@ ports:
 # Service configuration
 service:
   enabled: true
-  type: LoadBalancer
+  type: NodePort
 
 # Logs configuration
 logs:
