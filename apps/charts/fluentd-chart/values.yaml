@@ -403,11 +403,6 @@ fileConfigs:
         template_name "fluentd"
         template_file "/etc/fluent/templates/opensearch_template.json"
         template_overwrite true
-        
-        ca_file /usr/share/opensearch/config/root-ca.pem
-        client_cert /usr/share/opensearch/config/esnode.pem
-        client_key /usr/share/opensearch/config/esnode-key.pem
-        
         <buffer>
           @type file
           path "/fluentd/buffer"
