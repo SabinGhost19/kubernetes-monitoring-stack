@@ -28,23 +28,17 @@ providers:
     publishedService:
       enabled: true
 
-# Ports configuration
 ports:
   traefik:
     port: 8080
-    expose:
-      default: false
-
+    expose: false
   web:
     port: 8000
-    expose:
-      default: true
+    expose: true
     exposedPort: 80
-
   websecure:
     port: 8443
-    expose:
-      default: true
+    expose: true
     exposedPort: 443
     tls:
       enabled: true
