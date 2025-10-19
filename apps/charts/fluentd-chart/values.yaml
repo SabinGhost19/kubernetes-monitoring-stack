@@ -392,7 +392,7 @@ fileConfigs:
         scheme https
         ssl_verify false
         user admin
-        password "Admin123!@#"  
+        password "admin"  
         logstash_format true
         include_tag_key true
         tag_key "@log_name"
